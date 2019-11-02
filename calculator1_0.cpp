@@ -1,125 +1,232 @@
-// A Program from Programming: Principles and Practice Using C++ by Bjarne Stroustrup
+// calculator program from "Programming: Principles and Practice Using C++" by "Bjarne Stroustrup"
 
 #include <iostream>
 #include <exception>
 #include <string>
+#include <cmath>
 using namespace std;
 
-// for handling simple error
-inline void error(const string& s)
+// simple error system
+void error(string str)
 {
-	throw runtime_error(s);
+        throw runtime_error(str);
 }
 
-const char NUMBER = '8';
+const char NUM = '8';
 const string PROMPT = ".>>";
-const char EOL = ';';
 const char ADD = '+';
 const char SUB = '-';
 const char MUL = '*';
 const char DIV = '/';
 const char MOD = '%';
 const char EQL = '=';
+const char EOL = ';';
 const char LPARENTHESIS = '(';
 const char RPARENTHESIS = ')';
 
-// for changing characters in Token class
+// for making all characters into certain token
 class Token
 {
 public:
-        Token(char k)
-                : kind{ k }
-        {}
-        Token(char k, double v)
-                : kind{ k }, value{v}
-        {}
-
         char kind;
-        double value; // if a NUMBER then includes a value
+        double value; // if kind == number, store the value
 };
 
-// input stream for Token(s) using cin
-class TokenStream
+// for i/o of tokens using cin
+class Token_stream
 {
 public:
-        void putback(Token);
-        Token get();
-        void ignore(Token);
-
+        void putback(Token); // store the token into buffer, if full == false
+        Token get();         // get Token from the input stream
+        void ignore(char);
 private:
-        bool full{ false };   // at start buffer is not full
-        Token buffer;         // store the required Token through putback()
+        bool full{false};
+        Token buffer;
 };
 
-double expression();  // for addition and subtraction
-double term();        // for division, modulus and multiplication
-double primary();     // for floating point numbers and parenthesis
-void calculate();     // a different fuction to call expression
+double expression();   // for addition and subtraction
+double term();         // for multiplication, modulus and division
+double primary();      // for floating-point values and parenthesis
+void calculate();      // for printing the result
 
-TokenStream ts;
+Token_stream ts;
 
 int main()
-{}
+{
+        while(true)
+        try{
+                calculate();
+        }
+        catch(runtime_error& e)
+        {
+                cerr << e.what() << endl;
+                ts.ignore(';');
+        }
+}
 
-// to store a Token if not in use
-void TokenStream::putback(Token t)
+// putback the Token that is not in use
+void Token_stream::putback(Token t)
 {
         if(full)
-                error("buffer is full!");
+                error("Buffer is full!\n");
         buffer = t;
         full = true; // now the buffer is full
 }
 
-// to get a Token from input stream
-void TokenStream::get()
+// get the Token from the stream
+Token Token_stream::get()
 {
+        // first check the buffer
         if(full)
         {
                 full = false;
                 return buffer;
         }
 
+        // then check the input stream
         char ch;
         cin >> ch;
 
         switch(ch)
         {
-        case EOL: case ADD:
-        case SUB: case MUL:
-        case DIV: case MOD:
+        case EOL:
+        // operators
+        case ADD: case SUB:
+        case MUL: case DIV:
+        case MOD:
+        // binders
         case LPARENTHESIS: case RPARENTHESIS:
-                return Token{ ch };
-        case '.': case '0':
-        case '1': case '2':
-        case '3': case '4':
-        case '5': case '6':
-        case '7': case '8':
-        case '9':
-        {
+                return Token{ch};
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9':
+        case '.':
+        {       // if a digit is found, the the whole number
                 cin.putback(ch);
-                double d{};
+                double d;
                 cin >> d;
-                return Token{ ch, d };
+                return Token{NUM, d}; // '8' for number kind
         }
         default:
                 error("Bad Token!");
         }
 }
 
-// ignore all Tokens upto Token 't'
-void TokenStream::ignore(Token t)
+// ignore the characters upto this certain character
+void Token_stream::ignore(char c)
 {
-        // first remove from buffer
-        if(full && buffer.kind == t.kind)
+        // first empty the buffer
+        if(full && c==buffer.kind)
         {
                 full = false;
                 return;
         }
         full = false;
 
-        // remove from the input-stream(cin);
+        // then empty the stream
         char ch{};
         while(cin >> ch)
-                if(ch == t.kind)
+                if(ch==c)
                         return;
+
+}
+
+// for addition and subtraction
+double expression()
+{
+        double left = term(); // get the left hand term
+        Token t = ts.get();   // then get the next token
+        while(true)
+        {
+                switch(t.kind)
+                {
+                case ADD:
+                        left += term();
+                        t = ts.get();
+                        break;
+                case SUB:
+                        left -= term();
+                        t = ts.get();
+                        break;
+                default:
+                        ts.putback(t);
+                        return left;
+                }
+        }
+}
+
+// similarly
+double term()
+{
+        double left = primary();
+        Token t = ts.get();
+        while(true)
+        {
+                switch(t.kind)
+                {
+                case MUL:
+                        left *= primary();
+                        t = ts.get();
+                        break;
+                case DIV:
+                {
+                        double d = primary();
+                        if(d == 0)
+                                error("division by zero!");
+                        left /= d;
+                        t = ts.get();
+                        break;
+                }
+                case MOD:
+                {
+                        double d = primary();
+                        if (d == 0)
+                                error("divide by zero");
+                        left = fmod(left,d);
+                        t = ts.get();
+                        break;
+                }
+                default:
+                        ts.putback(t);
+                        return left;
+                }
+        }
+}
+
+double primary()
+{
+        Token t = ts.get();
+        switch(t.kind)
+        {
+        case NUM: // kind for number
+                return t.value;
+        case SUB:
+                return -primary();
+        case ADD:
+                return primary();
+        case LPARENTHESIS:
+        {
+                double d = expression();
+                t = ts.get();
+                if(t.kind != RPARENTHESIS)
+                        error("')' is expected!");
+                return d;
+        }
+        default:
+                error("bad Token!");
+        }
+}
+
+void calculate()
+// expression evaluation loop
+{
+        while (cin)
+        {
+                cout << PROMPT;
+                Token t = ts.get();
+                while (t.kind == EOL)
+                        t=ts.get();
+                // first discard all “prints”
+                ts.putback(t);
+                cout << "=" << expression() << '\n';
+        }
 }
