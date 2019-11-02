@@ -1,3 +1,5 @@
+// A Program from Programming: Principles and Practice Using C++ by Bjarne Stroustrup
+
 #include <iostream>
 #include <exception>
 #include <string>
