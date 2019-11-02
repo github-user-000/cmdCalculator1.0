@@ -8,4 +8,4 @@ includes only basic arithmetic like:
 4. Division
 5. Modulus
 
-For more functionalities check "cmdCalculator2.0"() 
+For more functionalities check "cmdCalculator2.0"(https://github.com/github-user-000/cmdCalculator2.0) 
